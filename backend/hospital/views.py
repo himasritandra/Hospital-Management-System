@@ -4,8 +4,14 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from .serializers import RegisterSerializer
+from django.db.models import Q
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+from .models import Department,Doctor
+from .serializers import (
+    DepartmentSerializer,
+    DoctorSerializer,
+    RegisterSerializer,
+)
 
 
 def user_data(user):
@@ -76,3 +82,32 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(user_data(request.user))
+class DepartmentListView(ListAPIView):
+    queryset = Department.objects.all().order_by('name')
+    serializer_class = DepartmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class DoctorListView(ListAPIView):
+    serializer_class = DoctorSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Doctor.objects.select_related('user', 'department')
+        search = self.request.query_params.get('search')
+        department = self.request.query_params.get('department')
+        if search:
+            qs = qs.filter(
+                Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(user__username__icontains=search)
+            )
+        if department:
+            qs = qs.filter(department_id=department)
+        return qs.order_by('user__first_name')
+
+
+class DoctorDetailView(RetrieveAPIView):
+    queryset = Doctor.objects.select_related('user', 'department')
+    serializer_class = DoctorSerializer
+    permission_classes = [permissions.IsAuthenticated]

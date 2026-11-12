@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Profile, Patient
+from .models import Profile, Patient,Department,Doctor
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -27,3 +27,20 @@ class RegisterSerializer(serializers.Serializer):
         Profile.objects.create(user=user, role='patient', phone=phone)
         Patient.objects.create(user=user)
         return user
+class DepartmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
+        fields = ['id', 'name']
+
+
+class DoctorSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    department_name = serializers.CharField(source='department.name', read_only=True)
+
+    class Meta:
+        model = Doctor
+        fields = ['id', 'name', 'department', 'department_name', 'fees', 'experience']
+
+    def get_name(self, obj):
+        full = obj.user.get_full_name()
+        return f"Dr. {full or obj.user.username}"
